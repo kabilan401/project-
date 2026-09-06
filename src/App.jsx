@@ -32,7 +32,9 @@ import {
   Mail,
   Award,
   GraduationCap,
-  Building
+  Building,
+  QrCode,
+  Upload
 } from 'lucide-react';
 
 export default function App() {
@@ -135,6 +137,7 @@ export default function App() {
   const [newLocation, setNewLocation] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newImage, setNewImage] = useState('');
+  const [newUPI, setNewUPI] = useState('');
 
   // Permanent Light Mode
   useEffect(() => {
@@ -262,10 +265,13 @@ export default function App() {
     showToast("Logged out successfully.");
   };
 
-  // ---------------- PRODUCT HANDLERS ----------------
   const handleSellSubmit = (e) => {
     e.preventDefault();
     if (!newTitle || !newPrice) return;
+
+    const sellerName = currentUser ? currentUser.name : "Student";
+    const upiHandle = newUPI.trim() || `${sellerName.toLowerCase().replace(/[^a-z0-9]/g, '')}@upi`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(upiHandle)}&pn=${encodeURIComponent(sellerName)}&am=${parseFloat(newPrice)}&cu=INR`;
 
     const newItem = {
       id: `prod-${Date.now()}`,
@@ -275,7 +281,7 @@ export default function App() {
       category: newCategory,
       condition: newCondition,
       conditionColor: newCondition === 'Like New' ? '#10b981' : newCondition === 'Excellent' ? '#3b82f6' : '#f59e0b',
-      seller: currentUser ? currentUser.name : "Student",
+      seller: sellerName,
       avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80",
       rating: 5.0,
       reviewsCount: 1,
@@ -283,6 +289,8 @@ export default function App() {
       location: newLocation || "Main Campus Quad",
       description: newDescription || "Great condition, ready for quick campus pickup!",
       image: newImage || "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80",
+      upiId: upiHandle,
+      paymentQr: qrUrl,
       tags: ["Student Listing", newCategory, newCondition],
       status: "Available",
       postedAgo: "Just now"
@@ -301,6 +309,7 @@ export default function App() {
     setNewDescription('');
     setNewImage('');
     setNewLocation('');
+    setNewUPI('');
 
     triggerConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     showToast("🎉 Your product has been listed on the marketplace!");
@@ -1381,15 +1390,72 @@ export default function App() {
                 ></textarea>
               </div>
 
+              {/* Photo Upload & Paste Section */}
               <div className="form-group">
-                <label className="form-label">Image URL (Optional)</label>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Upload size={16} style={{ color: 'var(--accent-primary)' }} />
+                  <span>Upload / Paste Item Photo *</span>
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="form-control"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          setNewImage(evt.target?.result || '');
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    — OR paste web photo URL link below —
+                  </div>
+
+                  <input 
+                    type="url" 
+                    className="form-control" 
+                    placeholder="https://images.unsplash.com/..." 
+                    value={newImage}
+                    onChange={(e) => setNewImage(e.target.value)}
+                  />
+                </div>
+
+                {newImage && (
+                  <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-primary)', marginBottom: '6px' }}>
+                      📸 Photo Preview:
+                    </div>
+                    <img 
+                      src={newImage} 
+                      alt="Product Preview" 
+                      style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '12px', border: '2px solid var(--accent-primary)' }} 
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Student UPI Payment QR Section */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <QrCode size={16} style={{ color: '#10b981' }} />
+                  <span>Student UPI ID / Payment Handle (Optional)</span>
+                </label>
                 <input 
-                  type="url" 
+                  type="text" 
                   className="form-control" 
-                  placeholder="https://images.unsplash.com/..." 
-                  value={newImage}
-                  onChange={(e) => setNewImage(e.target.value)}
+                  placeholder="e.g. 9876543210@upi or student@okicici" 
+                  value={newUPI}
+                  onChange={(e) => setNewUPI(e.target.value)}
                 />
+                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Auto-generates a scannable Payment QR Code for direct GooglePay, PhonePe, Paytm payments in Rupees (₹).
+                </div>
               </div>
 
               <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
@@ -1425,8 +1491,41 @@ export default function App() {
                 <img 
                   src={selectedProduct.image} 
                   alt={selectedProduct.title} 
-                  style={{ width: '100%', borderRadius: 'var(--radius-md)', height: '260px', objectFit: 'cover' }} 
+                  style={{ width: '100%', borderRadius: 'var(--radius-md)', height: '220px', objectFit: 'cover' }} 
                 />
+
+                {/* Student Payment QR Box */}
+                <div style={{
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(16, 185, 129, 0.06) 100%)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(79, 70, 229, 0.2)',
+                  marginTop: '12px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <QrCode size={16} />
+                    <span>Student Seller Payment QR (₹)</span>
+                  </div>
+                  
+                  <div style={{ background: 'white', padding: '8px', borderRadius: '12px', display: 'inline-block', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', marginBottom: '6px' }}>
+                    <img 
+                      src={selectedProduct.paymentQr || `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=${encodeURIComponent(selectedProduct.upiId || 'student@upi')}&pn=${encodeURIComponent(selectedProduct.seller)}&am=${selectedProduct.price}&cu=INR`} 
+                      alt="Payment QR Code"
+                      style={{ width: '130px', height: '130px', display: 'block' }}
+                    />
+                  </div>
+
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>
+                    Pay ₹{selectedProduct.price?.toLocaleString('en-IN')} to {selectedProduct.seller}
+                  </div>
+                  <div style={{ fontSize: '0.725rem', color: '#475569', marginTop: '2px' }}>
+                    UPI ID: <code style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', color: '#4f46e5', fontWeight: 700 }}>{selectedProduct.upiId || `${(selectedProduct.seller || 'student').toLowerCase().replace(/[^a-z0-9]/g, '')}@upi`}</code>
+                  </div>
+                  <div style={{ fontSize: '0.675rem', color: '#10b981', fontWeight: 700, marginTop: '4px' }}>
+                    ● Scan with GPay / PhonePe / Paytm
+                  </div>
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1439,14 +1538,22 @@ export default function App() {
                   <span style={{ fontSize: '1.8rem', fontWeight: 800 }}>₹{selectedProduct.price?.toLocaleString('en-IN')}</span>
                 </div>
 
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1rem' }}>
                   {selectedProduct.description}
                 </p>
+
+                <div style={{ padding: '0.75rem 0.9rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '0.775rem', fontWeight: 700, marginBottom: '2px', color: 'var(--text-main)' }}>Campus Handoff Location</div>
+                  <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={14} style={{ color: 'var(--accent-primary)' }} />
+                    {selectedProduct.location || 'Main Quad'} ({selectedProduct.college || 'College Campus'})
+                  </div>
+                </div>
 
                 <div style={{ marginTop: 'auto', display: 'flex', gap: '10px' }}>
                   <button className="btn-primary" style={{ flex: 1 }} onClick={() => {
                     triggerConfetti({ particleCount: 100, spread: 60 });
-                    showToast(`🎉 Direct meetup scheduled with seller ${selectedProduct.seller}!`);
+                    showToast(`🎉 Direct meetup scheduled with seller ${selectedProduct.seller}! Pay via QR or Cash.`);
                     setSelectedProduct(null);
                   }}>
                     <Check size={18} />
