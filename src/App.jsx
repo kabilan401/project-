@@ -451,19 +451,11 @@ export default function App() {
           alignItems: 'center'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
-            }}>
-              <ShoppingBag size={22} />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="CampusMart Logo" 
+              style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)' }} 
+            />
             <div>
               <h1 style={{ fontSize: '1.4rem', fontWeight: 800, background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 CampusMart
