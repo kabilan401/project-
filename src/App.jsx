@@ -1162,9 +1162,11 @@ export default function App() {
       <header className="app-header">
         <div className="header-container">
           <a href="#" className="logo-brand">
-            <div className="logo-icon-wrapper">
-              <ShoppingBag size={22} />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="CampusMart Logo" 
+              style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)' }} 
+            />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="logo-title">CampusMart</span>
