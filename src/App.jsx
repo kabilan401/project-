@@ -29,17 +29,36 @@ import { INITIAL_PRODUCTS, CATEGORIES } from './data/mockData';
 
 export default function App() {
   const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('campusmart_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    try {
+      const saved = localStorage.getItem('campusmart_products');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading campusmart_products from localStorage:", e);
+    }
+    return INITIAL_PRODUCTS;
   });
   
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('campusmart_theme') || 'dark';
+    try {
+      return localStorage.getItem('campusmart_theme') || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
   });
 
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [wishlist, setWishlist] = useState([]);
+  const [wishlist, setWishlist] = useState(() => {
+    try {
+      const saved = localStorage.getItem('campusmart_wishlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   
   // Modal states
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -62,13 +81,31 @@ export default function App() {
   const [newImage, setNewImage] = useState('');
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('campusmart_theme', theme);
+    try {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('campusmart_theme', theme);
+    } catch (e) {}
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem('campusmart_products', JSON.stringify(products));
+    try {
+      localStorage.setItem('campusmart_products', JSON.stringify(products));
+    } catch (e) {}
   }, [products]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('campusmart_wishlist', JSON.stringify(wishlist));
+    } catch (e) {}
+  }, [wishlist]);
+
+  const triggerConfetti = (opts) => {
+    try {
+      confetti(opts);
+    } catch (e) {
+      console.warn("Confetti effect unavailable", e);
+    }
+  };
 
   const showToast = (text) => {
     setToastMessage(text);
@@ -82,13 +119,14 @@ export default function App() {
   const toggleWishlist = (productId, e) => {
     if (e) e.stopPropagation();
     setWishlist(prev => {
-      const exists = prev.includes(productId);
+      const arr = Array.isArray(prev) ? prev : [];
+      const exists = arr.includes(productId);
       if (exists) {
         showToast("Removed from Wishlist");
-        return prev.filter(id => id !== productId);
+        return arr.filter(id => id !== productId);
       } else {
         showToast("Added to Wishlist!");
-        return [...prev, productId];
+        return [...arr, productId];
       }
     });
   };
@@ -131,7 +169,7 @@ export default function App() {
     setNewLocation('');
 
     // Trigger celebration
-    confetti({
+    triggerConfetti({
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 }
@@ -142,9 +180,10 @@ export default function App() {
 
   const openChat = (product, e) => {
     if (e) e.stopPropagation();
+    if (!product) return;
     setChatProduct(product);
     setChatMessages([
-      { sender: 'seller', text: `Hi! Thanks for reaching out about "${product.title}". It's available for pickup at ${product.location}.` }
+      { sender: 'seller', text: `Hi! Thanks for reaching out about "${product.title}". It's available for pickup at ${product.location || 'campus'}.` }
     ]);
   };
 
@@ -160,28 +199,37 @@ export default function App() {
     setTimeout(() => {
       setChatMessages(prev => [
         ...prev,
-        { sender: 'seller', text: `Awesome! Does meeting near ${chatProduct.location} around 4 PM work for you?` }
+        { sender: 'seller', text: `Awesome! Does meeting near ${chatProduct?.location || 'the main quad'} around 4 PM work for you?` }
       ]);
     }, 1000);
   };
 
   const handleBuyNow = (product) => {
-    confetti({
+    triggerConfetti({
       particleCount: 120,
       spread: 80,
       origin: { y: 0.5 }
     });
-    showToast(`🎉 Order placed! Direct meetup scheduled with ${product.seller}.`);
+    showToast(`🎉 Order placed! Direct meetup scheduled with ${product?.seller || 'seller'}.`);
     setSelectedProduct(null);
   };
 
   // Filtering
-  const filteredProducts = products.filter(item => {
+  const safeProducts = Array.isArray(products) ? products : INITIAL_PRODUCTS;
+  const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
+
+  const filteredProducts = safeProducts.filter(item => {
+    if (!item) return false;
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
-    const matchesSearch = searchQuery === '' || 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const title = item.title || '';
+    const description = item.description || '';
+    const tags = Array.isArray(item.tags) ? item.tags : [];
+    const query = searchQuery ? searchQuery.toLowerCase() : '';
+    
+    const matchesSearch = query === '' || 
+      title.toLowerCase().includes(query) ||
+      description.toLowerCase().includes(query) ||
+      tags.some(t => String(t).toLowerCase().includes(query));
     return matchesCategory && matchesSearch;
   });
 
@@ -351,7 +399,7 @@ export default function App() {
           ) : (
             <div className="products-grid">
               {filteredProducts.map(product => {
-                const isFavorite = wishlist.includes(product.id);
+                const isFavorite = safeWishlist.includes(product.id);
                 return (
                   <div key={product.id} className="product-card" onClick={() => setSelectedProduct(product)}>
                     <div className="card-image-wrapper">
@@ -390,7 +438,7 @@ export default function App() {
                         </div>
                         <div className="seller-location">
                           <MapPin size={12} />
-                          <span>{product.location.split(',')[0]}</span>
+                          <span>{(product.location || 'Campus Handoff').split(',')[0]}</span>
                         </div>
                       </div>
 
@@ -435,7 +483,7 @@ export default function App() {
                   style={{ width: '100%', borderRadius: 'var(--radius-md)', height: '260px', objectFit: 'cover' }} 
                 />
                 <div style={{ marginTop: '1rem', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {selectedProduct.tags.map((t, idx) => (
+                  {(selectedProduct.tags || []).map((t, idx) => (
                     <span key={idx} style={{
                       fontSize: '0.725rem',
                       padding: '4px 10px',
@@ -458,10 +506,14 @@ export default function App() {
                 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '1rem' }}>
                   <span style={{ fontSize: '1.8rem', fontWeight: 800 }}>${selectedProduct.price}</span>
-                  <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>${selectedProduct.originalPrice}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                    Save {Math.round((1 - selectedProduct.price / selectedProduct.originalPrice) * 100)}%
-                  </span>
+                  {selectedProduct.originalPrice > selectedProduct.price && (
+                    <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>${selectedProduct.originalPrice}</span>
+                  )}
+                  {selectedProduct.originalPrice > selectedProduct.price && selectedProduct.originalPrice > 0 && (
+                    <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
+                      Save {Math.round((1 - selectedProduct.price / selectedProduct.originalPrice) * 100)}%
+                    </span>
+                  )}
                 </div>
 
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
@@ -670,7 +722,7 @@ export default function App() {
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Heart size={20} style={{ color: '#ef4444' }} />
-                Saved Wishlist ({wishlist.length})
+                Saved Wishlist ({safeWishlist.length})
               </h3>
               <button className="modal-close" onClick={() => setIsWishlistModalOpen(false)}>
                 <X size={18} />
@@ -678,13 +730,13 @@ export default function App() {
             </div>
 
             <div className="modal-body">
-              {wishlist.length === 0 ? (
+              {safeWishlist.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)' }}>
                   No saved items yet. Click the heart icon on any card to save it!
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {products.filter(p => wishlist.includes(p.id)).map(p => (
+                  {safeProducts.filter(p => p && p.id && safeWishlist.includes(p.id)).map(p => (
                     <div key={p.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '10px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)' }}>
                       <img src={p.image} alt={p.title} style={{ width: '60px', height: '60px', borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} />
                       <div style={{ flex: 1 }}>
