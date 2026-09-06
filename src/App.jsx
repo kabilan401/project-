@@ -6,8 +6,6 @@ import {
   Plus, 
   Heart, 
   MessageSquare, 
-  Moon, 
-  Sun, 
   Grid, 
   BookOpen, 
   Laptop, 
@@ -23,34 +21,56 @@ import {
   Send,
   Eye,
   Tag,
-  ArrowRight
+  ArrowRight,
+  UserCheck,
+  Shield,
+  LogOut,
+  User,
+  Users,
+  Trash2,
+  Lock,
+  Mail,
+  Award
 } from 'lucide-react';
-import { INITIAL_PRODUCTS, CATEGORIES } from './data/mockData';
+import { INITIAL_PRODUCTS, INITIAL_STUDENTS, CATEGORIES } from './data/mockData';
 
 export default function App() {
+  // Database & Auth States
   const [products, setProducts] = useState(() => {
     try {
       const saved = localStorage.getItem('campusmart_products');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
-      console.error("Error reading campusmart_products from localStorage:", e);
+      console.error("Error reading products from localStorage:", e);
     }
     return INITIAL_PRODUCTS;
   });
-  
-  const [theme, setTheme] = useState(() => {
+
+  const [students, setStudents] = useState(() => {
     try {
-      return localStorage.getItem('campusmart_theme') || 'dark';
+      const saved = localStorage.getItem('campusmart_students');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {
-      return 'dark';
+      console.error("Error reading students from localStorage:", e);
+    }
+    return INITIAL_STUDENTS;
+  });
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('campusmart_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
     }
   });
 
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
   const [wishlist, setWishlist] = useState(() => {
     try {
       const saved = localStorage.getItem('campusmart_wishlist');
@@ -59,39 +79,76 @@ export default function App() {
       return [];
     }
   });
-  
-  // Modal states
+
+  // Filter & Search states
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [toastMessage, setToastMessage] = useState(null);
+
+  // Modal control states
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authTab, setAuthTab] = useState('student-login'); // 'student-login', 'student-register', 'admin-login'
+  const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
+  const [adminTab, setAdminTab] = useState('students'); // 'students', 'products'
+  const [adminStudentSearch, setAdminStudentSearch] = useState('');
+
+  // Chat Modal states
   const [chatProduct, setChatProduct] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  const [toastMessage, setToastMessage] = useState(null);
 
-  // New item form state
+  // Form states - Student Login/Register
+  const [loginStudentId, setLoginStudentId] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regStudentId, setRegStudentId] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regCollege, setRegCollege] = useState('School of Computing');
+
+  // Form states - Admin Login
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+
+  // Form states - Sell New Item
   const [newTitle, setNewTitle] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newOriginalPrice, setNewOriginalPrice] = useState('');
   const [newCategory, setNewCategory] = useState('Textbooks');
   const [newCondition, setNewCondition] = useState('Like New');
   const [newLocation, setNewLocation] = useState('');
-  const [newCollege, setNewCollege] = useState('School of Computing');
+  const [newCollege, setNewCollege] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newImage, setNewImage] = useState('');
 
+  // Permanent Light Mode enforcement
   useEffect(() => {
-    try {
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('campusmart_theme', theme);
-    } catch (e) {}
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', 'light');
+  }, []);
 
+  // Sync to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('campusmart_products', JSON.stringify(products));
     } catch (e) {}
   }, [products]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('campusmart_students', JSON.stringify(students));
+    } catch (e) {}
+  }, [students]);
+
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem('campusmart_current_user', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('campusmart_current_user');
+      }
+    } catch (e) {}
+  }, [currentUser]);
 
   useEffect(() => {
     try {
@@ -109,11 +166,159 @@ export default function App() {
 
   const showToast = (text) => {
     setToastMessage(text);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  // Auth Handlers
+  const handleStudentRegister = (e) => {
+    e.preventDefault();
+    if (!regName || !regStudentId || !regEmail) return;
+
+    const newStudent = {
+      id: `STU-${Date.now().toString().slice(-4)}`,
+      name: regName,
+      email: regEmail,
+      college: regCollege || "Engineering Department",
+      studentId: regStudentId,
+      joinedDate: new Date().toISOString().split('T')[0],
+      status: "Active",
+      listingsCount: 0
+    };
+
+    setStudents(prev => [newStudent, ...prev]);
+    const userPayload = { role: 'student', ...newStudent };
+    setCurrentUser(userPayload);
+    setIsAuthModalOpen(false);
+
+    // Reset form
+    setRegName('');
+    setRegStudentId('');
+    setRegEmail('');
+
+    triggerConfetti({ particleCount: 90, spread: 60, origin: { y: 0.6 } });
+    showToast(`🎉 Student Account Created! Welcome, ${newStudent.name}`);
+  };
+
+  const handleStudentLogin = (e) => {
+    e.preventDefault();
+    if (!loginStudentId.trim()) return;
+
+    const query = loginStudentId.trim().toLowerCase();
+    const existing = students.find(s => 
+      s.studentId.toLowerCase() === query || 
+      s.email.toLowerCase() === query ||
+      s.name.toLowerCase().includes(query)
+    );
+
+    if (existing) {
+      const userPayload = { role: 'student', ...existing };
+      setCurrentUser(userPayload);
+      setIsAuthModalOpen(false);
+      setLoginStudentId('');
+      showToast(`Welcome back, ${existing.name}!`);
+    } else {
+      // Auto-create student session for smooth demo login
+      const autoStudent = {
+        id: `STU-${Date.now().toString().slice(-4)}`,
+        name: loginStudentId.split('@')[0],
+        email: loginStudentId.includes('@') ? loginStudentId : `${loginStudentId}@college.edu`,
+        college: "School of Computing",
+        studentId: loginStudentId.toUpperCase(),
+        joinedDate: new Date().toISOString().split('T')[0],
+        status: "Active",
+        listingsCount: 0
+      };
+      setStudents(prev => [autoStudent, ...prev]);
+      setCurrentUser({ role: 'student', ...autoStudent });
+      setIsAuthModalOpen(false);
+      setLoginStudentId('');
+      showToast(`LoggedIn as Student ${autoStudent.name}`);
+    }
+  };
+
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
+    if (!adminUsername || !adminPassword) return;
+
+    const adminPayload = {
+      role: 'admin',
+      name: 'System Administrator',
+      email: 'admin@campusmart.edu',
+      id: 'ADM-001'
+    };
+
+    setCurrentUser(adminPayload);
+    setIsAuthModalOpen(false);
+    setIsAdminDashboardOpen(true);
+    setAdminUsername('');
+    setAdminPassword('');
+    showToast("👑 Authenticated as Administrator!");
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setIsAdminDashboardOpen(false);
+    showToast("Logged out successfully.");
+  };
+
+  // Product Actions
+  const handleSellSubmit = (e) => {
+    e.preventDefault();
+    if (!newTitle || !newPrice) return;
+
+    const sellerName = currentUser ? currentUser.name : "Kabilan (Student)";
+    const sellerCollege = currentUser ? currentUser.college : (newCollege || "School of Computing");
+
+    const newItem = {
+      id: `cm-${Date.now()}`,
+      title: newTitle,
+      price: parseFloat(newPrice),
+      originalPrice: newOriginalPrice ? parseFloat(newOriginalPrice) : parseFloat(newPrice) * 1.4,
+      category: newCategory,
+      condition: newCondition,
+      conditionColor: newCondition === 'Like New' ? '#10b981' : newCondition === 'Excellent' ? '#3b82f6' : '#f59e0b',
+      seller: sellerName,
+      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80",
+      rating: 5.0,
+      reviewsCount: 1,
+      college: sellerCollege,
+      location: newLocation || "Main Campus Dorms",
+      description: newDescription || "Clean, ready for instant student handoff on campus!",
+      image: newImage || "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80",
+      tags: ["Verified Student", newCategory, newCondition],
+      status: "Available",
+      views: 1,
+      postedAgo: "Just now"
+    };
+
+    setProducts(prev => [newItem, ...prev]);
+    setIsSellModalOpen(false);
+
+    // Update student listings count if student
+    if (currentUser && currentUser.id) {
+      setStudents(prev => prev.map(s => s.id === currentUser.id ? { ...s, listingsCount: (s.listingsCount || 0) + 1 } : s));
+    }
+    
+    // Reset form
+    setNewTitle('');
+    setNewPrice('');
+    setNewOriginalPrice('');
+    setNewDescription('');
+    setNewImage('');
+    setNewLocation('');
+
+    triggerConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    showToast("🎉 Item published successfully to campus marketplace!");
+  };
+
+  const handleDeleteProduct = (productId) => {
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    showToast("Listing deleted from marketplace.");
+  };
+
+  const handleDeleteStudent = (studentId) => {
+    setStudents(prev => prev.filter(s => s.id !== studentId));
+    showToast("Student record removed from database.");
   };
 
   const toggleWishlist = (productId, e) => {
@@ -125,57 +330,10 @@ export default function App() {
         showToast("Removed from Wishlist");
         return arr.filter(id => id !== productId);
       } else {
-        showToast("Added to Wishlist!");
+        showToast("Saved to Wishlist!");
         return [...arr, productId];
       }
     });
-  };
-
-  const handleSellSubmit = (e) => {
-    e.preventDefault();
-    if (!newTitle || !newPrice) return;
-
-    const newItem = {
-      id: `cm-${Date.now()}`,
-      title: newTitle,
-      price: parseFloat(newPrice),
-      originalPrice: newOriginalPrice ? parseFloat(newOriginalPrice) : parseFloat(newPrice) * 1.5,
-      category: newCategory,
-      condition: newCondition,
-      conditionColor: newCondition === 'Like New' ? '#10b981' : newCondition === 'Excellent' ? '#3b82f6' : '#f59e0b',
-      seller: "You (Kabilan)",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80",
-      rating: 5.0,
-      reviewsCount: 1,
-      college: newCollege || "Engineering Department",
-      location: newLocation || "Main Campus Dorm",
-      description: newDescription || "Great condition, ready for quick pickup on campus!",
-      image: newImage || "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80",
-      tags: ["Student Listing", newCategory, newCondition],
-      status: "Available",
-      views: 1,
-      postedAgo: "Just now"
-    };
-
-    setProducts([newItem, ...products]);
-    setIsSellModalOpen(false);
-    
-    // Reset form
-    setNewTitle('');
-    setNewPrice('');
-    setNewOriginalPrice('');
-    setNewDescription('');
-    setNewImage('');
-    setNewLocation('');
-
-    // Trigger celebration
-    triggerConfetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-
-    showToast("🎉 Your item has been listed successfully!");
   };
 
   const openChat = (product, e) => {
@@ -183,7 +341,7 @@ export default function App() {
     if (!product) return;
     setChatProduct(product);
     setChatMessages([
-      { sender: 'seller', text: `Hi! Thanks for reaching out about "${product.title}". It's available for pickup at ${product.location || 'campus'}.` }
+      { sender: 'seller', text: `Hi! Thanks for checking out "${product.title}". It's available for meetup at ${product.location || 'campus'}.` }
     ]);
   };
 
@@ -195,28 +353,18 @@ export default function App() {
     setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
     setChatInput('');
 
-    // Auto response
     setTimeout(() => {
       setChatMessages(prev => [
         ...prev,
-        { sender: 'seller', text: `Awesome! Does meeting near ${chatProduct?.location || 'the main quad'} around 4 PM work for you?` }
+        { sender: 'seller', text: `Sounds good! Meet at ${chatProduct?.location || 'the main quad'} around 4 PM today?` }
       ]);
     }, 1000);
   };
 
-  const handleBuyNow = (product) => {
-    triggerConfetti({
-      particleCount: 120,
-      spread: 80,
-      origin: { y: 0.5 }
-    });
-    showToast(`🎉 Order placed! Direct meetup scheduled with ${product?.seller || 'seller'}.`);
-    setSelectedProduct(null);
-  };
-
-  // Filtering
-  const safeProducts = Array.isArray(products) ? products : INITIAL_PRODUCTS;
+  // Safe Data getters
+  const safeProducts = Array.isArray(products) ? products : [];
   const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
+  const safeStudents = Array.isArray(students) ? students : [];
 
   const filteredProducts = safeProducts.filter(item => {
     if (!item) return false;
@@ -232,6 +380,17 @@ export default function App() {
       tags.some(t => String(t).toLowerCase().includes(query));
     return matchesCategory && matchesSearch;
   });
+
+  const filteredStudents = safeStudents.filter(s => {
+    if (!adminStudentSearch) return true;
+    const q = adminStudentSearch.toLowerCase();
+    return (s.name || '').toLowerCase().includes(q) ||
+      (s.studentId || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q) ||
+      (s.college || '').toLowerCase().includes(q);
+  });
+
+  const totalMarketValue = safeProducts.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
 
   const getCategoryIcon = (id) => {
     switch (id) {
@@ -258,7 +417,7 @@ export default function App() {
           padding: '12px 24px',
           borderRadius: '9999px',
           fontWeight: 600,
-          boxShadow: '0 10px 25px rgba(99, 102, 241, 0.4)',
+          boxShadow: '0 10px 25px rgba(79, 70, 229, 0.4)',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
@@ -279,7 +438,7 @@ export default function App() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="logo-title">CampusMart</span>
-                <span className="logo-badge">Verified College</span>
+                <span className="logo-badge">College Portal</span>
               </div>
             </div>
           </a>
@@ -303,19 +462,48 @@ export default function App() {
           </div>
 
           <div className="header-actions">
-            <button className="btn-icon" onClick={toggleTheme} title="Toggle Dark/Light Mode">
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
+            {/* Wishlist Button */}
             <button className="btn-icon" onClick={() => setIsWishlistModalOpen(true)} title="Wishlist">
               <Heart size={18} />
-              {wishlist.length > 0 && <span className="badge-count">{wishlist.length}</span>}
+              {safeWishlist.length > 0 && <span className="badge-count">{safeWishlist.length}</span>}
             </button>
 
-            <button className="btn-primary" onClick={() => setIsSellModalOpen(true)}>
-              <Plus size={18} />
-              <span>Sell Item</span>
-            </button>
+            {/* Authenticated Controls */}
+            {currentUser ? (
+              <>
+                {currentUser.role === 'admin' ? (
+                  <button className="btn-primary" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }} onClick={() => setIsAdminDashboardOpen(true)}>
+                    <Award size={18} />
+                    <span>Admin Dashboard</span>
+                  </button>
+                ) : (
+                  <>
+                    <div className="user-chip">
+                      <div className="user-chip-avatar">{currentUser.name?.charAt(0) || 'S'}</div>
+                      <span>{currentUser.name}</span>
+                    </div>
+                    <button className="btn-primary" onClick={() => setIsSellModalOpen(true)}>
+                      <Plus size={18} />
+                      <span>Post Listing</span>
+                    </button>
+                  </>
+                )}
+                <button className="btn-icon" onClick={handleLogout} title="Logout">
+                  <LogOut size={18} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="btn-secondary" onClick={() => { setAuthTab('student-login'); setIsAuthModalOpen(true); }}>
+                  <User size={16} />
+                  <span>Student Login</span>
+                </button>
+                <button className="btn-primary" onClick={() => { setAuthTab('admin-login'); setIsAuthModalOpen(true); }}>
+                  <Shield size={16} />
+                  <span>Admin Portal</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -326,35 +514,49 @@ export default function App() {
           <div className="hero-content">
             <div className="hero-pill">
               <ShieldCheck size={16} />
-              100% Student Verified Peer-to-Peer Marketplace
+              Verified Student Peer-to-Peer Marketplace
             </div>
             <h1 className="hero-title">
-              Buy, Sell & Trade <span>Dorm Gear & Books</span> Instantly
+              Buy & Sell <span>Campus Gear & Books</span> Direct
             </h1>
             <p className="hero-subtitle">
-              Save up to 70% on college textbooks, laptops, hostel furniture, calculators, and rides. Direct campus handoffs — zero shipping fees!
+              Exclusive campus marketplace for students to buy, sell, and trade textbooks, electronics, hostel furniture, calculators, and bicycles.
             </p>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button className="btn-primary" onClick={() => setIsSellModalOpen(true)}>
-                <span>Post a Listing</span>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <button 
+                className="btn-primary" 
+                onClick={() => {
+                  if (!currentUser) {
+                    setAuthTab('student-login');
+                    setIsAuthModalOpen(true);
+                  } else {
+                    setIsSellModalOpen(true);
+                  }
+                }}
+              >
+                <span>Post an Item for Sale</span>
                 <ArrowRight size={18} />
               </button>
-              <button className="btn-secondary" onClick={() => setActiveCategory('Textbooks')}>
-                <span>Browse Textbooks</span>
-              </button>
+              
+              {!currentUser && (
+                <button className="btn-secondary" onClick={() => { setAuthTab('admin-login'); setIsAuthModalOpen(true); }}>
+                  <Shield size={16} style={{ color: 'var(--accent-primary)' }} />
+                  <span>Admin Database Portal</span>
+                </button>
+              )}
             </div>
             <div className="hero-stats">
               <div className="stat-item">
-                <h4>2,400+</h4>
+                <h4>{safeStudents.length} Registered</h4>
                 <p>Campus Students</p>
               </div>
               <div className="stat-item">
-                <h4>$45k+</h4>
-                <p>Saved on Books</p>
+                <h4>{safeProducts.length} Active</h4>
+                <p>Live Listings</p>
               </div>
               <div className="stat-item">
-                <h4>15 Mins</h4>
-                <p>Avg Handoff Time</p>
+                <h4>${totalMarketValue}</h4>
+                <p>Marketplace Value</p>
               </div>
             </div>
           </div>
@@ -374,11 +576,11 @@ export default function App() {
           ))}
         </section>
 
-        {/* Product Grid */}
+        {/* Products Section */}
         <section className="products-section">
           <div className="section-header">
             <h2 className="section-title">
-              {activeCategory === 'All' ? 'Latest Campus Listings' : `${activeCategory} Listings`}
+              {activeCategory === 'All' ? 'Campus Listings' : `${activeCategory} Listings`}
               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                 ({filteredProducts.length} items)
               </span>
@@ -386,15 +588,56 @@ export default function App() {
           </div>
 
           {filteredProducts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
-              <Search size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
-              <h3>No items found</h3>
-              <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Try adjusting your search or category filter.
+            <div style={{
+              textAlign: 'center',
+              padding: '4rem 1.5rem',
+              background: 'var(--bg-secondary)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-color)',
+              boxShadow: 'var(--shadow-sm)'
+            }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                background: 'var(--accent-gradient-subtle)',
+                color: 'var(--accent-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem'
+              }}>
+                <ShoppingBag size={36} />
+              </div>
+              <h3 style={{ fontSize: '1.35rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                No campus listings found
+              </h3>
+              <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto 1.5rem', lineHeight: 1.5 }}>
+                {searchQuery || activeCategory !== 'All' 
+                  ? "No items match your active search or category filter. Try clearing filters!" 
+                  : "Be the first student to post textbooks, laptops, hostel gear, or bicycles for sale on campus!"}
               </p>
-              <button className="btn-secondary" style={{ marginTop: '1.5rem' }} onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}>
-                Reset Filters
-              </button>
+              
+              {searchQuery || activeCategory !== 'All' ? (
+                <button className="btn-secondary" onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}>
+                  Clear Filters
+                </button>
+              ) : (
+                <button 
+                  className="btn-primary" 
+                  onClick={() => {
+                    if (!currentUser) {
+                      setAuthTab('student-register');
+                      setIsAuthModalOpen(true);
+                    } else {
+                      setIsSellModalOpen(true);
+                    }
+                  }}
+                >
+                  <Plus size={18} />
+                  <span>List First Product Now</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="products-grid">
@@ -428,12 +671,14 @@ export default function App() {
                       </div>
 
                       <div className="card-seller">
-                        <img src={product.avatar} alt={product.seller} className="seller-avatar" />
+                        <div className="user-chip-avatar" style={{ width: '28px', height: '28px' }}>
+                          {product.seller?.charAt(0) || 'S'}
+                        </div>
                         <div>
                           <div className="seller-name">{product.seller}</div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
                             <Star size={10} style={{ color: '#f59e0b', display: 'inline', marginRight: '2px' }} />
-                            {product.rating} ({product.reviewsCount})
+                            {product.rating || '5.0'} ({product.reviewsCount || 1})
                           </div>
                         </div>
                         <div className="seller-location">
@@ -451,6 +696,17 @@ export default function App() {
                           <Eye size={14} />
                           <span>View</span>
                         </button>
+                        
+                        {currentUser?.role === 'admin' && (
+                          <button 
+                            className="btn-danger-sm" 
+                            style={{ padding: '6px' }}
+                            title="Admin Delete"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteProduct(product.id); }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -460,6 +716,349 @@ export default function App() {
           )}
         </section>
       </main>
+
+      {/* Auth Modal (Student Login/Register & Admin Login) */}
+      {isAuthModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsAuthModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <UserCheck size={20} style={{ color: 'var(--accent-primary)' }} />
+                Campus Access Portal
+              </h3>
+              <button className="modal-close" onClick={() => setIsAuthModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="auth-tabs">
+                <button 
+                  className={`auth-tab ${authTab === 'student-login' ? 'active' : ''}`}
+                  onClick={() => setAuthTab('student-login')}
+                >
+                  Student Login
+                </button>
+                <button 
+                  className={`auth-tab ${authTab === 'student-register' ? 'active' : ''}`}
+                  onClick={() => setAuthTab('student-register')}
+                >
+                  Register Student
+                </button>
+                <button 
+                  className={`auth-tab ${authTab === 'admin-login' ? 'active' : ''}`}
+                  onClick={() => setAuthTab('admin-login')}
+                >
+                  Admin Portal
+                </button>
+              </div>
+
+              {/* Student Login Form */}
+              {authTab === 'student-login' && (
+                <form onSubmit={handleStudentLogin}>
+                  <div className="form-group">
+                    <label className="form-label">Student ID or Email *</label>
+                    <input 
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. CS2026-089 or kabilan@college.edu"
+                      value={loginStudentId}
+                      onChange={(e) => setLoginStudentId(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                    <span>Sign In to Student Account</span>
+                  </button>
+                </form>
+              )}
+
+              {/* Student Register Form */}
+              {authTab === 'student-register' && (
+                <form onSubmit={handleStudentRegister}>
+                  <div className="form-group">
+                    <label className="form-label">Full Name *</label>
+                    <input 
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Kabilan Ganesan"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Student Roll No / ID *</label>
+                    <input 
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. CS2026-089"
+                      value={regStudentId}
+                      onChange={(e) => setRegStudentId(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">College Email *</label>
+                    <input 
+                      type="email"
+                      className="form-control"
+                      placeholder="kabilan@college.edu"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Department / School</label>
+                    <input 
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. School of Computing"
+                      value={regCollege}
+                      onChange={(e) => setRegCollege(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                    <Sparkles size={16} />
+                    <span>Create Verified Student Account</span>
+                  </button>
+                </form>
+              )}
+
+              {/* Admin Login Form */}
+              {authTab === 'admin-login' && (
+                <form onSubmit={handleAdminLogin}>
+                  <div style={{ padding: '10px 14px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', border: '1px solid rgba(245, 158, 11, 0.3)', fontSize: '0.8rem', color: '#b45309' }}>
+                    <strong>Admin Demo Credentials:</strong> Username: <code>admin</code> | Password: <code>admin123</code>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Admin Username *</label>
+                    <input 
+                      type="text"
+                      className="form-control"
+                      placeholder="admin"
+                      value={adminUsername}
+                      onChange={(e) => setAdminUsername(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Admin Passcode *</label>
+                    <input 
+                      type="password"
+                      className="form-control"
+                      placeholder="••••••••"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
+                    <Lock size={16} />
+                    <span>Login to Admin Portal</span>
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Dashboard Modal */}
+      {isAdminDashboardOpen && currentUser?.role === 'admin' && (
+        <div className="modal-overlay" onClick={() => setIsAdminDashboardOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Award size={22} style={{ color: '#f59e0b' }} />
+                  CampusMart Admin Portal & Database
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Manage registered students, monitor system listings, and moderate marketplace data.
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => setIsAdminDashboardOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {/* Metrics Summary Cards */}
+              <div className="admin-metrics-grid">
+                <div className="metric-card">
+                  <div className="metric-icon">
+                    <Users size={24} />
+                  </div>
+                  <div>
+                    <div className="metric-val">{safeStudents.length}</div>
+                    <div className="metric-label">Registered Students</div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>
+                    <ShoppingBag size={24} />
+                  </div>
+                  <div>
+                    <div className="metric-val">{safeProducts.length}</div>
+                    <div className="metric-label">Live Listings</div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)' }}>
+                    <Tag size={24} />
+                  </div>
+                  <div>
+                    <div className="metric-val">${totalMarketValue}</div>
+                    <div className="metric-label">Total Listings Value</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="auth-tabs" style={{ marginBottom: '1rem' }}>
+                <button 
+                  className={`auth-tab ${adminTab === 'students' ? 'active' : ''}`}
+                  onClick={() => setAdminTab('students')}
+                >
+                  Student User Database ({safeStudents.length})
+                </button>
+                <button 
+                  className={`auth-tab ${adminTab === 'products' ? 'active' : ''}`}
+                  onClick={() => setAdminTab('products')}
+                >
+                  Manage Live Products ({safeProducts.length})
+                </button>
+              </div>
+
+              {/* Tab 1: Student User Database Table */}
+              {adminTab === 'students' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
+                    <div className="search-bar-container" style={{ maxWidth: '360px' }}>
+                      <Search className="search-icon" size={16} />
+                      <input 
+                        type="text"
+                        className="search-input"
+                        placeholder="Search student by name, ID or email..."
+                        value={adminStudentSearch}
+                        onChange={(e) => setAdminStudentSearch(e.target.value)}
+                        style={{ padding: '0.5rem 1rem 0.5rem 2.5rem', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Showing {filteredStudents.length} student records
+                    </span>
+                  </div>
+
+                  <div className="admin-table-container">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Student ID</th>
+                          <th>Full Name</th>
+                          <th>College Email</th>
+                          <th>Department / School</th>
+                          <th>Date Joined</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredStudents.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                              No student records found.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredStudents.map(student => (
+                            <tr key={student.id}>
+                              <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{student.studentId}</td>
+                              <td style={{ fontWeight: 600 }}>{student.name}</td>
+                              <td style={{ color: 'var(--text-muted)' }}>{student.email}</td>
+                              <td>{student.college}</td>
+                              <td style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>{student.joinedDate}</td>
+                              <td>
+                                <span className="logo-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                                  {student.status || 'Active'}
+                                </span>
+                              </td>
+                              <td>
+                                <button 
+                                  className="btn-danger-sm"
+                                  onClick={() => handleDeleteStudent(student.id)}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Manage Live Products Table */}
+              {adminTab === 'products' && (
+                <div className="admin-table-container">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Item Details</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Seller Name</th>
+                        <th>Location</th>
+                        <th>Posted</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {safeProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                            No active products in marketplace.
+                          </td>
+                        </tr>
+                      ) : (
+                        safeProducts.map(product => (
+                          <tr key={product.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <img src={product.image} alt={product.title} style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
+                                <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{product.title}</span>
+                              </div>
+                            </td>
+                            <td>{product.category}</td>
+                            <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>${product.price}</td>
+                            <td>{product.seller}</td>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{product.location}</td>
+                            <td style={{ fontSize: '0.775rem', color: 'var(--text-dim)' }}>{product.postedAgo}</td>
+                            <td>
+                              <button 
+                                className="btn-danger-sm"
+                                onClick={() => handleDeleteProduct(product.id)}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Item Details Modal */}
       {selectedProduct && (
@@ -509,11 +1108,6 @@ export default function App() {
                   {selectedProduct.originalPrice > selectedProduct.price && (
                     <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>${selectedProduct.originalPrice}</span>
                   )}
-                  {selectedProduct.originalPrice > selectedProduct.price && selectedProduct.originalPrice > 0 && (
-                    <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                      Save {Math.round((1 - selectedProduct.price / selectedProduct.originalPrice) * 100)}%
-                    </span>
-                  )}
                 </div>
 
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
@@ -529,7 +1123,11 @@ export default function App() {
                 </div>
 
                 <div style={{ marginTop: 'auto', display: 'flex', gap: '10px' }}>
-                  <button className="btn-primary" style={{ flex: 1 }} onClick={() => handleBuyNow(selectedProduct)}>
+                  <button className="btn-primary" style={{ flex: 1 }} onClick={() => {
+                    triggerConfetti({ particleCount: 100, spread: 60 });
+                    showToast(`🎉 Deal scheduled with seller ${selectedProduct.seller}!`);
+                    setSelectedProduct(null);
+                  }}>
                     <Check size={18} />
                     <span>Meet & Buy Now</span>
                   </button>
@@ -543,14 +1141,14 @@ export default function App() {
         </div>
       )}
 
-      {/* Sell Modal */}
+      {/* Post Product Modal */}
       {isSellModalOpen && (
         <div className="modal-overlay" onClick={() => setIsSellModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Plus size={20} style={{ color: 'var(--accent-primary)' }} />
-                Post Item for Sale
+                Post Item for Campus Sale
               </h3>
               <button className="modal-close" onClick={() => setIsSellModalOpen(false)}>
                 <X size={18} />
@@ -563,7 +1161,7 @@ export default function App() {
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="e.g. Data Structures Textbook (3rd Ed)" 
+                  placeholder="e.g. CLRS Algorithms Textbook (4th Ed)" 
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   required
@@ -583,11 +1181,11 @@ export default function App() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Original Retail Price ($)</label>
+                  <label className="form-label">Original Price ($)</label>
                   <input 
                     type="number" 
                     className="form-control" 
-                    placeholder="90" 
+                    placeholder="95" 
                     value={newOriginalPrice}
                     onChange={(e) => setNewOriginalPrice(e.target.value)}
                   />
@@ -626,11 +1224,11 @@ export default function App() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Pickup Location / Dorm</label>
+                <label className="form-label">Campus Pickup Location / Dorm</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="e.g. North Quad, Dorm B #204" 
+                  placeholder="e.g. North Campus, Dorm B #204" 
                   value={newLocation}
                   onChange={(e) => setNewLocation(e.target.value)}
                 />
@@ -678,10 +1276,12 @@ export default function App() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <img src={chatProduct.avatar} alt={chatProduct.seller} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                <div className="user-chip-avatar" style={{ width: '32px', height: '32px' }}>
+                  {chatProduct.seller?.charAt(0) || 'S'}
+                </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{chatProduct.seller}</div>
-                  <div style={{ fontSize: '0.725rem', color: '#10b981' }}>● Online now</div>
+                  <div style={{ fontSize: '0.725rem', color: '#10b981' }}>● Student Seller</div>
                 </div>
               </div>
               <button className="modal-close" onClick={() => setChatProduct(null)}>
@@ -732,7 +1332,7 @@ export default function App() {
             <div className="modal-body">
               {safeWishlist.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)' }}>
-                  No saved items yet. Click the heart icon on any card to save it!
+                  No saved items yet. Click the heart icon on any product card to save it!
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -764,10 +1364,10 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <ShoppingBag size={20} style={{ color: 'var(--accent-primary)' }} />
             <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>CampusMart</span>
-            <span>— College Marketplace platform for students.</span>
+            <span>— Exclusive Peer-to-Peer College Marketplace.</span>
           </div>
           <div>
-            © 2026 CampusMart. Built for verified peer-to-peer campus trading.
+            © 2026 CampusMart. Permanent Light Theme & Verified Student Network.
           </div>
         </div>
       </footer>
