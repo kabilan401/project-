@@ -869,7 +869,7 @@ export default function App() {
       {isAdminDashboardOpen && currentUser?.role === 'admin' && (
         <div className="modal-overlay" onClick={() => setIsAdminDashboardOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
-            <div className="modal-header">
+            <div className="modal-header" style={{ alignItems: 'flex-start' }}>
               <div>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Award size={22} style={{ color: '#f59e0b' }} />
@@ -879,9 +879,28 @@ export default function App() {
                   Manage registered students, monitor system listings, and moderate marketplace data.
                 </p>
               </div>
-              <button className="modal-close" onClick={() => setIsAdminDashboardOpen(false)}>
-                <X size={18} />
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  className="btn-danger-sm" 
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px' }}
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to clear all student records and products to make the database 100% fresh?")) {
+                      setProducts([]);
+                      setStudents([]);
+                      localStorage.removeItem('campusmart_products');
+                      localStorage.removeItem('campusmart_students');
+                      showToast("Database purged! Application is now 100% fresh.");
+                    }
+                  }}
+                  title="Wipe database & start fresh"
+                >
+                  <Trash2 size={14} />
+                  <span>Purge Database (Fresh Start)</span>
+                </button>
+                <button className="modal-close" onClick={() => setIsAdminDashboardOpen(false)}>
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="modal-body">
