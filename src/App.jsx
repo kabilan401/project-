@@ -4,6 +4,7 @@ import {
   ShoppingBag, 
   Search, 
   Plus, 
+  PlusCircle,
   Heart, 
   MessageSquare, 
   Grid, 
@@ -143,6 +144,20 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light');
   }, []);
+
+  // Android Hardware Back Button & Modal Dismiss Listener
+  useEffect(() => {
+    const handlePopState = () => {
+      if (selectedProduct || isSellModalOpen || isWishlistModalOpen || chatProduct) {
+        setSelectedProduct(null);
+        setIsSellModalOpen(false);
+        setIsWishlistModalOpen(false);
+        setChatProduct(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedProduct, isSellModalOpen, isWishlistModalOpen, chatProduct]);
 
   // Save changes to localStorage
   useEffect(() => {
@@ -572,14 +587,7 @@ export default function App() {
                     placeholder="e.g. Kabilan Ganesan"
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 1rem',
-                      borderRadius: '12px',
-                      border: '1px solid #cbd5e1',
-                      outline: 'none',
-                      fontSize: '0.925rem'
-                    }}
+                    className="form-control"
                   />
                 </div>
 
@@ -589,18 +597,12 @@ export default function App() {
                   </label>
                   <input 
                     type="text"
+                    inputMode="text"
                     required
                     placeholder="e.g. CS2026-089"
                     value={regStudentId}
                     onChange={(e) => setRegStudentId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 1rem',
-                      borderRadius: '12px',
-                      border: '1px solid #cbd5e1',
-                      outline: 'none',
-                      fontSize: '0.925rem'
-                    }}
+                    className="form-control"
                   />
                 </div>
 
@@ -610,18 +612,12 @@ export default function App() {
                   </label>
                   <input 
                     type="email"
+                    inputMode="email"
                     required
-                    placeholder="kabilan@college.edu"
+                    placeholder="e.g. kabilan@college.edu"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 1rem',
-                      borderRadius: '12px',
-                      border: '1px solid #cbd5e1',
-                      outline: 'none',
-                      fontSize: '0.925rem'
-                    }}
+                    className="form-control"
                   />
                 </div>
 
@@ -993,6 +989,48 @@ export default function App() {
                       )}
                     </tbody>
                   </table>
+
+                  {/* Mobile Responsive Stacked Card View */}
+                  <div className="mobile-card-list">
+                    {filteredStudents.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b' }}>
+                        <Users size={32} style={{ color: '#cbd5e1', marginBottom: '0.5rem' }} />
+                        <div>No student records found in database.</div>
+                      </div>
+                    ) : (
+                      filteredStudents.map(student => (
+                        <div key={student.id} className="mobile-card-item">
+                          <div className="mobile-card-header">
+                            <div style={{ fontWeight: 800, color: '#4f46e5', fontSize: '0.9rem' }}>{student.studentId}</div>
+                            <span className="logo-badge" style={{ background: 'rgba(79, 70, 229, 0.1)', color: '#4f46e5' }}>
+                              {student.listingsCount || 0} items
+                            </span>
+                          </div>
+                          <div className="mobile-card-row">
+                            <span className="mobile-card-label">Name</span>
+                            <span className="mobile-card-value">{student.name}</span>
+                          </div>
+                          <div className="mobile-card-row">
+                            <span className="mobile-card-label">Email</span>
+                            <span className="mobile-card-value" style={{ fontSize: '0.8rem', color: '#475569' }}>{student.email}</span>
+                          </div>
+                          <div className="mobile-card-row">
+                            <span className="mobile-card-label">Department</span>
+                            <span className="mobile-card-value">{student.college}</span>
+                          </div>
+                          <div className="mobile-card-row">
+                            <span className="mobile-card-label">Registered</span>
+                            <span className="mobile-card-value" style={{ fontSize: '0.775rem', color: '#94a3b8' }}>{student.joinedDate}</span>
+                          </div>
+                          <div className="mobile-card-actions">
+                            <button className="btn-danger-sm" onClick={() => handleDeleteStudent(student.id)}>
+                              Delete Student
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1047,6 +1085,45 @@ export default function App() {
                     )}
                   </tbody>
                 </table>
+
+                {/* Mobile Responsive Stacked Card View */}
+                <div className="mobile-card-list">
+                  {safeProducts.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b' }}>
+                      <ShoppingBag size={32} style={{ color: '#cbd5e1', marginBottom: '0.5rem' }} />
+                      <div>No product listings in marketplace.</div>
+                    </div>
+                  ) : (
+                    safeProducts.map(p => (
+                      <div key={p.id} className="mobile-card-item">
+                        <div className="mobile-card-header">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <img src={p.image} alt={p.title} style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
+                            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{p.title}</span>
+                          </div>
+                          <span style={{ fontWeight: 800, color: '#4f46e5' }}>₹{p.price.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="mobile-card-row">
+                          <span className="mobile-card-label">Category</span>
+                          <span className="mobile-card-value">{p.category}</span>
+                        </div>
+                        <div className="mobile-card-row">
+                          <span className="mobile-card-label">Seller</span>
+                          <span className="mobile-card-value">{p.seller}</span>
+                        </div>
+                        <div className="mobile-card-row">
+                          <span className="mobile-card-label">Location</span>
+                          <span className="mobile-card-value" style={{ fontSize: '0.8rem', color: '#64748b' }}>{p.location}</span>
+                        </div>
+                        <div className="mobile-card-actions">
+                          <button className="btn-danger-sm" onClick={() => handleDeleteProduct(p.id)}>
+                            Delete Listing
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1286,10 +1363,27 @@ export default function App() {
         </section>
       </main>
 
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="mobile-nav">
+        <button onClick={() => { setActiveCategory('All'); window.scrollTo(0, 0); }}>
+          <ShoppingBag size={20} />
+          <span>Home</span>
+        </button>
+        <button onClick={() => setIsSellModalOpen(true)}>
+          <PlusCircle size={28} style={{ color: 'var(--accent-primary)' }} />
+          <span>Post</span>
+        </button>
+        <button onClick={() => setIsWishlistModalOpen(true)}>
+          <Heart size={20} />
+          <span>Wishlist</span>
+        </button>
+      </nav>
+
       {/* Post Product Modal */}
       {isSellModalOpen && (
         <div className="modal-overlay" onClick={() => setIsSellModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+            <div className="modal-drag-handle"></div>
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Plus size={20} style={{ color: 'var(--accent-primary)' }} />
@@ -1318,8 +1412,9 @@ export default function App() {
                   <label className="form-label">Selling Price (₹) *</label>
                   <input 
                     type="number" 
+                    inputMode="numeric"
                     className="form-control" 
-                    placeholder="499" 
+                    placeholder="e.g. 850" 
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
                     required
@@ -1476,6 +1571,7 @@ export default function App() {
       {selectedProduct && (
         <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '720px' }}>
+            <div className="modal-drag-handle"></div>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Tag size={18} style={{ color: 'var(--accent-primary)' }} />
@@ -1570,6 +1666,7 @@ export default function App() {
       {chatProduct && (
         <div className="modal-overlay" onClick={() => setChatProduct(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-drag-handle"></div>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className="user-chip-avatar" style={{ width: '32px', height: '32px' }}>
@@ -1615,6 +1712,7 @@ export default function App() {
       {isWishlistModalOpen && (
         <div className="modal-overlay" onClick={() => setIsWishlistModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '540px' }}>
+            <div className="modal-drag-handle"></div>
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Heart size={20} style={{ color: '#ef4444' }} />
@@ -1664,6 +1762,91 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Mobile Bottom Sticky Navigation Bar */}
+      <nav className="mobile-bottom-nav">
+        <button 
+          className={`mobile-nav-item ${activeCategory === 'All' && !selectedProduct && !isSellModalOpen && !isWishlistModalOpen ? 'active' : ''}`}
+          onClick={() => {
+            setActiveCategory('All');
+            setSearchQuery('');
+            setSelectedProduct(null);
+            setIsSellModalOpen(false);
+            setIsWishlistModalOpen(false);
+            setChatProduct(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        >
+          <div className="mobile-nav-icon-wrapper">
+            <Home size={20} />
+          </div>
+          <span>Home</span>
+        </button>
+
+        <button 
+          className={`mobile-nav-item ${isSellModalOpen ? 'active' : ''}`}
+          onClick={() => {
+            if (!currentUser) {
+              showToast("Please register or log in as a student to sell items.");
+              setShowStudentAuthModal(true);
+            } else {
+              setIsSellModalOpen(true);
+            }
+          }}
+        >
+          <div className="mobile-nav-icon-wrapper" style={{ background: 'var(--accent-gradient)', color: 'white' }}>
+            <PlusCircle size={20} />
+          </div>
+          <span>Sell</span>
+        </button>
+
+        <button 
+          className={`mobile-nav-item ${isWishlistModalOpen ? 'active' : ''}`}
+          onClick={() => setIsWishlistModalOpen(true)}
+        >
+          <div className="mobile-nav-icon-wrapper">
+            <Heart size={20} />
+          </div>
+          {safeWishlist.length > 0 && (
+            <span className="mobile-nav-badge">{safeWishlist.length}</span>
+          )}
+          <span>Wishlist</span>
+        </button>
+
+        <button 
+          className={`mobile-nav-item ${currentUser?.role === 'admin' ? 'active' : ''}`}
+          onClick={() => {
+            if (currentUser?.role === 'admin') {
+              showToast("Viewing Admin System Database");
+            } else {
+              setLoginPageTab('admin-login');
+              setShowStudentAuthModal(true);
+            }
+          }}
+        >
+          <div className="mobile-nav-icon-wrapper">
+            <Shield size={20} />
+          </div>
+          <span>Admin</span>
+        </button>
+
+        <button 
+          className="mobile-nav-item"
+          onClick={() => {
+            if (currentUser) {
+              handleLogout();
+            } else {
+              setLoginPageTab('student-register');
+              setShowStudentAuthModal(true);
+            }
+          }}
+        >
+          <div className="mobile-nav-icon-wrapper">
+            <User size={20} />
+          </div>
+          <span>{currentUser ? 'Logout' : 'Account'}</span>
+        </button>
+      </nav>
     </div>
   );
 }
