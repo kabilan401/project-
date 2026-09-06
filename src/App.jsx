@@ -870,7 +870,7 @@ export default function App() {
                 <Tag size={26} />
               </div>
               <div>
-                <div className="metric-val">${totalMarketValue}</div>
+                <div className="metric-val">₹{totalMarketValue.toLocaleString('en-IN')}</div>
                 <div className="metric-label">Total Marketplace Value</div>
               </div>
             </div>
@@ -1021,7 +1021,7 @@ export default function App() {
                             </div>
                           </td>
                           <td>{p.category}</td>
-                          <td style={{ fontWeight: 800, color: '#4f46e5' }}>${p.price}</td>
+                          <td style={{ fontWeight: 800, color: '#4f46e5' }}>₹{p.price.toLocaleString('en-IN')}</td>
                           <td>{p.seller}</td>
                           <td style={{ color: '#64748b', fontSize: '0.8rem' }}>{p.location}</td>
                           <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{p.postedAgo}</td>
@@ -1235,9 +1235,9 @@ export default function App() {
                       <h3 className="card-title">{product.title}</h3>
 
                       <div className="card-price-row">
-                        <span className="price-current">${product.price}</span>
+                        <span className="price-current">₹{product.price?.toLocaleString('en-IN')}</span>
                         {product.originalPrice > product.price && (
-                          <span className="price-original">${product.originalPrice}</span>
+                          <span className="price-original">₹{product.originalPrice?.toLocaleString('en-IN')}</span>
                         )}
                       </div>
 
@@ -1306,22 +1306,22 @@ export default function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label className="form-label">Selling Price ($) *</label>
+                  <label className="form-label">Selling Price (₹) *</label>
                   <input 
                     type="number" 
                     className="form-control" 
-                    placeholder="45" 
+                    placeholder="499" 
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Original Price ($)</label>
+                  <label className="form-label">Original Price (₹)</label>
                   <input 
                     type="number" 
                     className="form-control" 
-                    placeholder="90" 
+                    placeholder="999" 
                     value={newOriginalPrice}
                     onChange={(e) => setNewOriginalPrice(e.target.value)}
                   />
@@ -1436,7 +1436,7 @@ export default function App() {
                 <h2 style={{ fontSize: '1.4rem', margin: '0.35rem 0 0.75rem' }}>{selectedProduct.title}</h2>
                 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '1rem' }}>
-                  <span style={{ fontSize: '1.8rem', fontWeight: 800 }}>${selectedProduct.price}</span>
+                  <span style={{ fontSize: '1.8rem', fontWeight: 800 }}>₹{selectedProduct.price?.toLocaleString('en-IN')}</span>
                 </div>
 
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
@@ -1530,7 +1530,7 @@ export default function App() {
                       <img src={p.image} alt={p.title} style={{ width: '60px', height: '60px', borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{p.title}</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--accent-primary)', fontWeight: 800 }}>${p.price}</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--accent-primary)', fontWeight: 800 }}>₹{p.price?.toLocaleString('en-IN')}</div>
                       </div>
                       <button className="modal-close" onClick={() => toggleWishlist(p.id)}>
                         <X size={16} />
